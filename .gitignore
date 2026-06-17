@@ -1,0 +1,10 @@
+# Cache de Python (no aporta nada al sitio)
+__pycache__/
+*.pyc
+
+# Basura de sistema operativo
+Thumbs.db
+.DS_Store
+
+# NOTA: el CSV (dataset/archivo_final_proyecto_entrega.csv, ~35 MB) SÍ se sube
+# a propósito, para conservar los datos originales completos.
