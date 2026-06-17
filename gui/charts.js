@@ -55,7 +55,7 @@ function bar(id, labels, vals, { horizontal = true, colorVar = '--brand', eur = 
     data: { labels, datasets: [{ data: vals, backgroundColor: alpha(col, 0.85), hoverBackgroundColor: col, borderRadius: 5, maxBarThickness: 30 }] },
     options: {
       indexAxis: horizontal ? 'y' : 'x', responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => eur ? fmtEur(c.parsed[horizontal ? 'x' : 'y']) : fmtNum(c.parsed[horizontal ? 'x' : 'y']) } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { title: () => '', label: c => eur ? fmtEur(c.parsed[horizontal ? 'x' : 'y']) : fmtNum(c.parsed[horizontal ? 'x' : 'y']) } } },
       scales: horizontal ? { x: valAx, y: catAx } : { x: catAx, y: valAx },
       animation: { duration: 500, easing: 'easeOutQuart' },
     },

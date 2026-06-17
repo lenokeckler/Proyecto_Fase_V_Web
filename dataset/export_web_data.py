@@ -144,6 +144,9 @@ data['e1'] = {
  'ageGroupDist': kv(df['GrupoEdad'].value_counts().reindex(AGE_ORDER)),
  'valueGroupDist': kv(df['GrupoValor'].value_counts().reindex(['Bajo', 'Medio', 'Alto'])),
  'heightGroupDist': kv(df['GrupoAltura'].value_counts().reindex(['Bajo', 'Medio', 'Alto'])),
+ 'posicionDist': kv(df['PosicionPrincipal'].value_counts().head(15)),
+'brechaHist': hist(df['brecha'], 10),
+'eficienciaHist': hist(df[df['EficienciaFinanciera'].replace([np.inf, -np.inf], np.nan).notna()]['EficienciaFinanciera'].clip(0, 50), 10),
 }
 
 # ETAPA 2 — Dimensional

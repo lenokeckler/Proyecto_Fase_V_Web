@@ -168,6 +168,15 @@ a { color: inherit; }
 [data-theme="dark"] .kpi.brand { color: oklch(0.16 0.02 262); }
 [data-theme="dark"] .kpi.brand .label, [data-theme="dark"] .kpi.brand .value, [data-theme="dark"] .kpi.brand .unit { color: oklch(0.16 0.02 262); }
 
+/* Section titles */
+.section-title {
+  grid-column: 1 / -1;
+  font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--ink-soft); border-bottom: 2px solid var(--border);
+  padding-bottom: var(--sp-2); margin-top: var(--sp-4);
+}
+.section-title:first-child { margin-top: 0; }
+
 /* Panels / charts */
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: var(--sp-4); }
 .panel {
