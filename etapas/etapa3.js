@@ -14,13 +14,15 @@ registerView('e3uni', {
       <p>Medidas de tendencia central y dispersión para edad, overall, potential, value, wage y las 2 variables elegidas por el grupo (<b>BrechaPotencial</b> y <b>pace</b>), más las categóricas.</p></div>
     ${panel({ tag: 'Resumen', q: 'Medidas de tendencia central y dispersión', body: `<div style="overflow-x:auto">${kvTable(statRows, ['Variable', 'Media', 'Mediana', 'Moda', 'Mín', 'Q1', 'Q3', 'Máx', 'IQR', 'Desv.', 'Sesgo'])}</div>`, answer: `<b>Edad:</b> media ${ageStat.mean}, moda ${ageStat.mode}, sesgo ${ageStat.skew} → la distribución de edad está sesgada a la derecha (más jóvenes que veteranos), lo cual tiene sentido en el fútbol profesional.` })}
     <div class="grid-2">
+    </div><h3 class="section-title">Histogramas y distribuciones</h3><div class="grid-2">
       ${panel({ tag: 'Numérico', q: 'Distribución de edad', canvas: 'u1', answer: '<b>Respuesta:</b> concentrada entre 21 y 29 años (moda 22) con sesgo leve a la derecha (0.43): hay más jóvenes que veteranos.' })}
       ${panel({ tag: 'Numérico', q: 'Distribución de overall', canvas: 'u2', answer: '<b>Respuesta:</b> campana casi simétrica centrada en ~65; los jugadores de élite (85+) son muy pocos.' })}
       ${panel({ tag: 'Numérico', q: 'Distribución de valor (log₁₀)', canvas: 'u3', answer: '<b>Respuesta:</b> fuerte sesgo a la derecha: la mayoría vale poco y unos pocos cracks alcanzan cientos de millones (por eso se usa escala log).' })}
       ${panel({ tag: 'Numérico', q: 'Distribución de salario (log₁₀)', canvas: 'u4', answer: '<b>Respuesta:</b> igual de sesgada que el valor: salarios bajos para la mayoría y altísimos para una minoría.' })}
       ${panel({ tag: 'Numérico', q: 'Distribución de BrechaPotencial', canvas: 'u5', answer: '<b>Respuesta:</b> moda 0 y sesgo positivo (0.83): la mayoría ya está cerca de su techo, pero hay jóvenes con gran margen (hasta +28).' })}
       ${panel({ tag: 'Numérico', q: 'Distribución de pace', canvas: 'u6', answer: '<b>Respuesta:</b> bastante simétrica y centrada en ~68, más uniforme que las variables económicas.' })}
-      ${panel({ tag: 'Categórico', q: 'Top 10 nacionalidades', canvas: 'u7', answer: '<b>Respuesta:</b> las naciones con cantera más profunda lideran el conteo de jugadores.' })}
+    </div><h3 class="section-title">Variables categóricas</h3><div class="grid-2">
+      ${panel({ tag: 'Categórico', q: 'Top 10 nacionalidades por número de jugadores', canvas: 'u7', answer: '<b>Respuesta:</b> England lidera con ~20,000 registros acumulados en 10 temporadas, seguida de Spain, Germany y Argentina. El conteo refleja registros históricos acumulados, no jugadores únicos activos.' })}
       ${panel({ tag: 'Categórico', q: 'Top 10 clubes por nº de jugadores', canvas: 'u8', answer: `<b>Respuesta:</b> el club con más jugadores es <b>${D.e3.topClubs[0].k}</b>.` })}
       ${panel({ tag: 'Categórico', q: 'Jugadores por grupo de posición', canvas: 'u9', answer: '<b>Respuesta:</b> mediocampistas (37%) y defensas (32%) son los más numerosos; los porteros, los menos (11%).' })}
       ${panel({ tag: 'Categórico', q: 'Distribución por grupo de edad', canvas: 'u10', answer: '<b>Respuesta:</b> Prime domina con el 55% de los registros.' })}
@@ -60,9 +62,9 @@ registerView('e3rel', {
       ${panel({ tag: 'Num × Cat', q: 'Valor mediano por posición', canvas: 'b3', answer: '<b>Respuesta:</b> los <b>delanteros</b> tienen el valor mediano más alto.' })}
       ${panel({ tag: 'Num × Cat', q: 'Salario mediano por grupo de edad', canvas: 'b4', answer: '<b>Respuesta:</b> el salario sube con la edad: la experiencia se paga.' })}
       ${panel({ tag: 'Num × Cat', q: 'Overall medio por liga (Top 8)', canvas: 'b5', answer: '<b>Respuesta:</b> las grandes ligas muestran mayor overall mediano.' })}
-      ${panel({ tag: 'Num × Cat', q: 'Overall medio por pie dominante', canvas: 'b6', answer: '<b>Respuesta:</b> apenas hay diferencia de overall entre diestros y zurdos.' })}
+      ${panel({ tag: 'Num × Cat', q: 'Overall medio por pie dominante', canvas: 'b6', answer: '<b>Respuesta:</b> diestros y zurdos tienen un overall prácticamente idéntico (~65), confirmando que el pie dominante no influye en el rendimiento.' })}
       ${panel({ tag: 'Multivariante', q: 'Valor promedio por posición y grupo de edad', canvas: 'b7', tall: true, answer: '<b>Respuesta:</b> la combinación <b>Prime + Ofensivos</b> (delanteros) alcanza el mayor valor de mercado promedio.' })}
-      ${panel({ tag: 'Multivariante', q: 'Salario mediano de jóvenes por posición', canvas: 'b8', answer: '<b>Respuesta:</b> entre los jóvenes, los delanteros son los mejor pagados.' })}
+      ${panel({ tag: 'Multivariante', q: 'Salario mediano de jóvenes por posición', canvas: 'b8', answer: '<b>Respuesta:</b> entre los jóvenes, delanteros, defensas y mediocampistas tienen salarios muy similares (~€2K); los porteros quedan significativamente por debajo (~€1K).' })}
     </div>`;
     scatter('b1', D.e3.scatterOV, 'Overall', 'Valor (EUR, log)');
     scatter('b2', D.e3.scatterPW, 'Potencial', 'Salario (EUR, log)');

@@ -70,7 +70,7 @@ function groupBar(id, labels, datasets, { eur = false } = {}) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { position: 'top', labels: { boxWidth: 12, boxHeight: 12, usePointStyle: true, color: tc('--ink-soft') } },
         tooltip: { callbacks: { label: c => `${c.dataset.label}: ${eur ? fmtEur(c.parsed.y) : fmtNum(c.parsed.y)}` } } },
-      scales: { x: { type: 'category', grid: { display: false }, ticks: { color: tc('--muted'), maxRotation: 0 } }, y: axis(eur) }, animation: { duration: 500, easing: 'easeOutQuart' },
+      scales: { x: { type: 'category', grid: { display: false }, ticks: { color: tc('--muted'), autoSkip: false, maxRotation: 45 } }, y: axis(eur) }, animation: { duration: 500, easing: 'easeOutQuart' },
     },
   });
 }
