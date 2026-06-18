@@ -96,6 +96,139 @@ function scatter(id, pts, xl, yl, { logY = true } = {}) {
     },
   });
 }
+function residualScatter(id, pts, xl, yl) {
+  const col = tc('--brand');
+  return new Chart($('#' + id), {
+    type: 'scatter',
+    data: { datasets: [
+      { data: pts, backgroundColor: alpha(col, 0.35), pointRadius: 3, pointHoverRadius: 5 },
+      { type: 'line', data: [{x: Math.min(...pts.map(p=>p.x)), y: 0}, {x: Math.max(...pts.map(p=>p.x)), y: 0}], borderColor: 'red', borderDash: [6, 4], borderWidth: 2, pointRadius: 0 },
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `Pred: ${c.parsed.x} · Residuo: ${c.parsed.y}` } } },
+      scales: { x: { ...axis(), title: { display: true, text: xl, color: tc('--muted') } },
+                y: { ...axis(), title: { display: true, text: yl, color: tc('--muted') } } },
+      animation: { duration: 400 },
+    },
+  });
+}
+function clusterScatter(id, points, centroids, labels) {
+  const cPal = ['rgba(67,160,71,0.55)', 'rgba(229,57,53,0.55)', 'rgba(30,136,229,0.55)', 'rgba(255,179,0,0.55)'];
+  const cPalSolid = ['#43A047', '#E53935', '#1E88E5', '#FFB300'];
+  const datasets = labels.map((lbl, i) => ({
+    label: lbl,
+    data: points.filter(p => p.c === i),
+    backgroundColor: cPal[i], pointBorderColor: cPalSolid[i], pointBorderWidth: 1,
+    pointRadius: 3, pointHoverRadius: 5,
+  }));
+  datasets.push({
+    label: 'Centroides',
+    data: centroids.map(c => ({ x: c.x, y: c.y })),
+    backgroundColor: 'red', pointRadius: 8, pointStyle: 'crossRot',
+    pointBorderColor: 'red', pointBorderWidth: 2,
+  });
+  return new Chart($('#' + id), {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { color: tc('--ink-soft'), boxWidth: 10, usePointStyle: true, font: { size: 11 } } } },
+      scales: {
+        x: { ...axis(), title: { display: true, text: 'Componente Principal 1', color: tc('--muted') } },
+        y: { ...axis(), title: { display: true, text: 'Componente Principal 2', color: tc('--muted') } },
+      },
+      animation: { duration: 400 },
+    },
+  });
+}
+function cuboBar(id, labels, vals, { colorVar = '--brand' } = {}) {
+  const col = tc(colorVar);
+  const vMin = Math.floor(Math.min(...vals)) - 2;
+  const vMax = Math.ceil(Math.max(...vals)) + 2;
+  return new Chart($('#' + id), {
+    type: 'bar',
+    data: { labels, datasets: [{
+      data: vals,
+      backgroundColor: alpha(col, 0.85),
+      hoverBackgroundColor: col,
+      borderColor: tc('--ink'),
+      borderWidth: 1,
+      borderRadius: 3,
+      maxBarThickness: 28,
+    }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => fmtNum(c.parsed.x) } },
+      },
+      scales: {
+        x: { ...axis(), min: vMin, max: vMax, grid: { color: tc('--grid'), drawBorder: false } },
+        y: { type: 'category', grid: { display: false }, ticks: { color: tc('--muted'), autoSkip: false, font: { size: 11 } } },
+      },
+      animation: { duration: 500, easing: 'easeOutQuart' },
+    },
+    plugins: [{
+      id: 'barLabels',
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        ctx.font = 'bold 11px Fira Sans, sans-serif';
+        ctx.fillStyle = tc('--ink');
+        ctx.textBaseline = 'middle';
+        chart.getDatasetMeta(0).data.forEach((bar, i) => {
+          ctx.fillText(vals[i].toFixed(1), bar.x + 6, bar.y);
+        });
+      },
+    }],
+  });
+}
+const CAT_COLORS = { GK: '#EAB308', DEF: '#4682B4', MID: '#3CB371', ATT: '#FF6347' };
+function teamBar(id, players) {
+  const sorted = players.slice().sort((a, b) => b.o - a.o);
+  const labels = sorted.map(p => p.n);
+  const vals = sorted.map(p => p.o);
+  const colors = sorted.map(p => CAT_COLORS[p.cat] || tc('--brand'));
+  const vMin = Math.floor(Math.min(...vals)) - 5;
+  const vMax = Math.ceil(Math.max(...vals)) + 3;
+  return new Chart($('#' + id), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: vals, backgroundColor: colors.map(c => c + 'D9'), hoverBackgroundColor: colors, borderColor: tc('--ink'), borderWidth: 1, borderRadius: 3, maxBarThickness: 26 }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { generateLabels: () => Object.entries(CAT_COLORS).map(([k, c]) => ({ text: k, fillStyle: c, strokeStyle: c, lineWidth: 0 })), boxWidth: 10, usePointStyle: true, color: tc('--ink-soft') } },
+        tooltip: { callbacks: { label: c => `Overall: ${c.parsed.x}` } },
+      },
+      scales: { x: { ...axis(), min: vMin, max: vMax, grid: { color: tc('--grid'), drawBorder: false } }, y: { type: 'category', grid: { display: false }, ticks: { color: tc('--muted'), font: { size: 11 } } } },
+      animation: { duration: 500, easing: 'easeOutQuart' },
+    },
+    plugins: [{
+      id: 'teamBarLabels',
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        ctx.font = 'bold 11px Fira Sans, sans-serif';
+        ctx.fillStyle = tc('--ink');
+        ctx.textBaseline = 'middle';
+        chart.getDatasetMeta(0).data.forEach((bar, i) => {
+          ctx.fillText(vals[i], bar.x + 6, bar.y);
+        });
+      },
+    }],
+  });
+}
+function coloredBar(id, labels, vals, colors) {
+  return new Chart($('#' + id), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: vals, backgroundColor: colors.map(c => c + 'D9'), hoverBackgroundColor: colors, borderRadius: 5, maxBarThickness: 30 }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `Eficiencia: ${fmtNum(c.parsed.x)}` } } },
+      scales: { x: { ...axis(), beginAtZero: true }, y: { type: 'category', grid: { display: false }, ticks: { color: tc('--muted'), autoSkip: false } } },
+      animation: { duration: 500, easing: 'easeOutQuart' },
+    },
+  });
+}
 function radar(id, labels, datasets) {
   const pal = palette();
   return new Chart($('#' + id), {

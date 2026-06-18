@@ -33,6 +33,30 @@ function heatmapTable(labels, matrix) {
   return `<div style="overflow-x:auto"><table class="tbl hm-tbl"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+/* confusion matrix visual heatmap */
+function confusionMatrix(matrix) {
+  const max = Math.max(...matrix.flat());
+  const cell = (v) => {
+    const t = v / max;
+    const bg = `rgba(37,99,235,${0.12 + t * 0.78})`;
+    const txt = t > 0.45 ? '#fff' : 'var(--ink)';
+    return `<td class="cm-cell" style="background:${bg};color:${txt}"><span class="cm-val">${fmtInt(v)}</span></td>`;
+  };
+  return `<div class="cm-wrap">
+    <div class="cm-ylabel">Valor real</div>
+    <div class="cm-inner">
+      <table class="cm-tbl">
+        <thead><tr><th></th><th class="cm-h">Pred. 0</th><th class="cm-h">Pred. 1</th></tr></thead>
+        <tbody>
+          <tr><th class="cm-h">Real 0</th>${cell(matrix[0][0])}${cell(matrix[0][1])}</tr>
+          <tr><th class="cm-h">Real 1</th>${cell(matrix[1][0])}${cell(matrix[1][1])}</tr>
+        </tbody>
+      </table>
+      <div class="cm-xlabel">Predicción</div>
+    </div>
+  </div>`;
+}
+
 /* controles (sliders) */
 const _fmtMap = {};
 function rangeCtl(id, label, val, min, max, step, fmt) {

@@ -13,23 +13,54 @@ registerView('e4', {
   group: 'Reporte', label: 'Etapa 4 · Modelos', icon: 'brain',
   crumb: 'Etapa 4', title: 'Etapa 4 · Predictivo y prescriptivo',
   render(c) {
-    const vm = D.e4.valueModel, pm = D.e4.potModel;
-    const cont = D.e4.contratacion, rows = [];
-    Object.keys(cont).forEach(g => cont[g].forEach(r => rows.push([g, r[0], r[1], r[2], r[3]])));
-    const cm = pm.confusion;
-    const cmTable = `<table class="tbl"><thead><tr><th></th><th class="n">Pred. 0</th><th class="n">Pred. 1</th></tr></thead>
-      <tbody><tr><th>Real 0</th><td class="n">${fmtInt(cm[0][0])}</td><td class="n">${fmtInt(cm[0][1])}</td></tr>
-      <tr><th>Real 1</th><td class="n">${fmtInt(cm[1][0])}</td><td class="n">${fmtInt(cm[1][1])}</td></tr></tbody></table>`;
+    const vm = D.e4.valueModel, lr = D.e4.potModelLR, rf = D.e4.potModelRF;
     const clusters = D.e4.clusters.map(c => `<span class="chip">${c.label}</span>`).join(' ');
+    const gvl = D.e4.greedyVsLp;
     c.innerHTML = `<div class="view-intro"><h2>Análisis predictivo y prescriptivo</h2>
       <p>Modelos de regresión, clasificación y clustering, y la recomendación de contratación más eficiente.</p></div>
     <div class="grid-2">
-      ${panel({ tag: 'Regresión', q: 'Valor de mercado — 5 features más influyentes (correlación con log-valor)', canvas: 'p1', answer: `<b>Correlaciones:</b> las 5 variables más correlacionadas con log_value_eur son overall (0.897), potential (0.814), log_wage (0.705), passing (0.581) y dribbling (0.519). <b>Modelo final:</b> se seleccionó <b>overall + age</b> (R² = ${vm.r2}, RMSE = ${vm.rmse} en escala log); potential y log_wage se excluyeron por multicolinealidad y endogeneidad, y age se incluyó porque aporta una dimensión distinta al rendimiento.` })}
-      ${panel({ tag: 'Clasificación', q: '¿Potencial > 85? — Matriz de confusión (regresión logística)', body: `<div style="overflow-x:auto">${cmTable}</div>`, answer: `<b>Respuesta:</b> accuracy ${(pm.accuracy * 100).toFixed(0)}%, recall ${(pm.recall * 100).toFixed(0)}%, precisión ${(pm.precision * 100).toFixed(0)}%, F1 ${pm.f1}. Clase minoritaria (1%) → se prioriza recall para no perder promesas.` })}
-      ${panel({ tag: 'Clustering', q: 'Tipos de jugador (K-Means, k=4 + PCA)', body: `<div class="chips">${clusters}</div>`, answer: 'Perfiles según edad, potencial, valor y salario: identifican talento joven, estrellas, veteranos y base.' })}
-      ${panel({ tag: 'Prescriptivo', q: 'Contratación — Top 3 más eficientes por posición (overall ≥ 75)', body: `<div style="overflow-x:auto">${kvTable(rows, ['Posición', 'Jugador', 'Overall', 'Valor', 'Eficiencia'], [3])}</div>`, answer: 'Eficiencia = overall por cada millón de € de valor. Premia el bajo costo por punto de rendimiento.' })}
+      <h3 class="section-title">Regresión Lineal — Predicción de valor de mercado</h3>
+      ${panel({ tag: 'Correlación', q: '5 features más influyentes (correlación con log-valor)', canvas: 'p1', answer: `<b>Correlaciones:</b> las 5 variables más correlacionadas con log_value_eur son overall (0.897), potential (0.814), log_wage (0.705), passing (0.581) y dribbling (0.519). <b>Modelo final:</b> se seleccionó <b>overall + age</b> (R² = ${vm.r2}, RMSE = ${vm.rmse} en escala log); potential y log_wage se excluyeron por multicolinealidad y endogeneidad, y age se incluyó porque aporta una dimensión distinta al rendimiento.` })}
+      ${panel({ tag: 'Matriz', q: 'Matriz de correlación — Variables candidatas', body: heatmapTable(D.e4.regCorr.labels, D.e4.regCorr.matrix), answer: '<b>Respuesta:</b> overall y potential presentan alta correlación con value_eur (0.53 y 0.48). wage_eur también correlaciona fuerte (0.78), pero se excluye del modelo por endogeneidad. Se observa multicolinealidad entre overall, potential, passing y dribbling.' })}
+      ${panel({ tag: 'Residuos', q: 'Residuos vs Predichos — Verificación de homocedasticidad', canvas: 'p3', tall: true, answer: '<b>Respuesta:</b> los residuos se concentran alrededor de cero, pero no se distribuyen uniformemente en todo el rango: la varianza no es constante, lo que indica que el supuesto de homocedasticidad no se cumple perfectamente.' })}
+      <h3 class="section-title">Regresión Logística — ¿Potencial > 85?</h3>
+      ${panel({ tag: 'Reg. Logística', q: 'Matriz de confusión — Regresión Logística', body: confusionMatrix(lr.confusion), answer: `<b>Respuesta:</b> accuracy ${(lr.accuracy * 100).toFixed(0)}%, recall ${(lr.recall * 100).toFixed(0)}%, precisión ${(lr.precision * 100).toFixed(0)}%, F1 ${lr.f1}. Prioriza recall (87%) para no perder promesas, a costa de muchos falsos positivos (precisión 17%).` })}
+      ${panel({ tag: 'Random Forest', q: 'Matriz de confusión — Random Forest', body: confusionMatrix(rf.confusion), answer: `<b>Respuesta:</b> accuracy ${(rf.accuracy * 100).toFixed(0)}%, recall ${(rf.recall * 100).toFixed(0)}%, precisión ${(rf.precision * 100).toFixed(0)}%, F1 ${rf.f1}. Mucho más preciso (88%) pero sacrifica recall (51%): detecta menos promesas pero con menos falsos positivos.` })}
+      <h3 class="section-title">K-Means Clustering — Perfiles de jugador</h3>
+      ${panel({ tag: 'Perfiles', q: 'Tipos de jugador (K-Means, k=4)', body: `<div class="chips">${clusters}</div>`, answer: 'Perfiles según edad, potencial, valor y salario: identifican talento joven, estrellas, veteranos y base.' })}
+      ${panel({ tag: 'PCA', q: 'Visualización PCA de los 4 clusters', canvas: 'p2', tall: true, answer: 'Cada punto es un jugador proyectado en 2 componentes principales (age, potential, log_value, log_wage). Los centroides (×) marcan el centro de cada perfil.' })}
+      <h3 class="section-title">Prescriptivo — Decisiones de negocio</h3>
+      <h4 class="subsection-title">Construcción de Equipo</h4>
+      ${panel({ tag: 'Comparación', q: 'Greedy vs Programación Lineal — Rating y costo del XI', canvas: 'p4', answer: '<b>Respuesta:</b> la Programación Lineal alcanza un rating de <b>950</b> con €143.8M, superando al Greedy (881, €150M). La optimización matemática encuentra la combinación óptima global en vez de elegir paso a paso.' })}
+      ${panel({ tag: 'Equipo', q: 'XI seleccionado — Greedy (rating: ' + gvl.rating.greedy + ' · costo: €' + gvl.cost.greedy + 'M)', canvas: 'p4g', tall: true, answer: 'El Greedy selecciona secuencialmente el jugador con mayor overall que no impida completar las posiciones restantes dentro del presupuesto.' })}
+      ${panel({ tag: 'Equipo', q: 'XI seleccionado — Prog. Lineal (rating: ' + gvl.rating.linprog + ' · costo: €' + gvl.cost.linprog + 'M)', canvas: 'p4l', tall: true, answer: 'La Programación Lineal optimiza globalmente: mayor rating total con menor gasto.' })}
+      <h4 class="subsection-title">Contratación</h4>
+      ${panel({ tag: 'Eficiencia', q: 'Top 3 jugadores más eficientes por posición (overall ≥ 75)', canvas: 'p5', tall: true, answer: 'Eficiencia = overall por cada millón de € de valor. Colores: <b style="color:#4682B4">Defensa</b>, <b style="color:#3CB371">Mediocampista</b>, <b style="color:#FF6347">Delantero</b>.' })}
+      <h4 class="subsection-title">Cubos Dimensionales</h4>
+      ${panel({ tag: 'Cubo 1', q: 'Top 10 clubes por overall promedio', canvas: 'p6a', answer: '<b>Respuesta:</b> FC Bayern München, Juventus y FC Barcelona lideran el ranking, reflejando su capacidad para atraer y retener élite.' })}
+      ${panel({ tag: 'Cubo 2', q: 'Top ligas por overall promedio', canvas: 'p6b', answer: '<b>Respuesta:</b> la Premier League destaca como la liga con mayor overall promedio, seguida de la Bundesliga.' })}
+      ${panel({ tag: 'Cubo 3', q: 'Overall y Potencial por grupo de edad', canvas: 'p6c', answer: '<b>Respuesta:</b> los jugadores Prime (21-28) muestran el mejor balance entre overall actual y potencial restante.' })}
     </div>`;
     bar('p1', D.e4.valueModel.feats.map(x => x[0]), D.e4.valueModel.feats.map(x => x[1]));
+    residualScatter('p3', D.e4.regResiduals, 'Valores predichos', 'Residuos');
+    const cp = D.e4.clusterPCA;
+    clusterScatter('p2', cp.points, cp.centroids, cp.labels);
+    groupBar('p4', ['Rating total', 'Costo (€M)'], [
+      { label: 'Greedy', data: [gvl.rating.greedy, gvl.cost.greedy] },
+      { label: 'Prog. Lineal', data: [gvl.rating.linprog, gvl.cost.linprog] }]);
+    const _req = { GK: 1, DEF: 4, MID: 3, ATT: 3 }, _bud = 150e6;
+    teamBar('p4g', d2Greedy(_req, _bud));
+    teamBar('p4l', d2Linprog(_req, _bud));
+    const efLabels = D.e4.efChart.map(x => x.k.replace(/ \(Def\)/, '').replace(/ \(Med\)/, '').replace(/ \(Del\)/, ''));
+    const efVals = D.e4.efChart.map(x => x.v);
+    const efColors = D.e4.efChart.map(x => x.k.includes('Def') ? '#4682B4' : x.k.includes('Med') ? '#3CB371' : '#FF6347');
+    coloredBar('p5', efLabels, efVals, efColors);
+    cuboBar('p6a', D.e4.topClubsOvr.map(x => x.k), D.e4.topClubsOvr.map(x => x.v), { colorVar: '--brand' });
+    cuboBar('p6b', D.e4.topLigasOvr.map(x => x.k), D.e4.topLigasOvr.map(x => x.v), { colorVar: '--teal' });
+    const ce = D.e4.cuboEdad;
+    groupBar('p6c', ce.map(x => x.k), [
+      { label: 'Overall', data: ce.map(x => x.ovr) },
+      { label: 'Potencial', data: ce.map(x => x.pot) }]);
   },
 });
 

@@ -5,6 +5,9 @@ jugadores para los 3 dashboards prescriptivos. Toda la lógica replica fielmente
 notebooks entregados (Proyecto_Fase_I..IV). Ejecutar:  python export_web_data.py
 """
 import numpy as np, pandas as pd, os, json
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # CSV final: se prefiere la copia local del paquete (proyecto autocontenido);
@@ -251,23 +254,91 @@ data['e4'] = {
  # predictivo (valores reportados en el notebook Fase IV)
  'valueModel': {'feats': [['overall', 0.897], ['potential', 0.814], ['log_wage', 0.705], ['passing', 0.581], ['dribbling', 0.519]],
                 'r2': 0.89, 'rmse': 0.45, 'predictors': 'overall + age'},
- 'potModel': {'accuracy': 0.96, 'precision': 0.17, 'recall': 0.87, 'f1': 0.29,
-              'confusion': [[60954, 2808], [87, 593]]},
+ 'potModelLR': {'accuracy': 0.96, 'precision': 0.17, 'recall': 0.87, 'f1': 0.29,
+                'confusion': [[60954, 2808], [87, 593]]},
+ 'potModelRF': {'accuracy': 0.99, 'precision': 0.88, 'recall': 0.51, 'f1': 0.65,
+                'confusion': [[63715, 47], [333, 347]]},
  'clusters': [
    {'label': 'Jóvenes de bajo potencial', 'c': 0},
    {'label': 'Estrellas establecidas', 'c': 1},
    {'label': 'Veteranos consolidados', 'c': 2},
    {'label': 'Talento joven con proyección', 'c': 3}],
  'featCorr': kv(df[['overall', 'potential', 'wage_eur', 'passing', 'dribbling', 'age', 'pace', 'shooting']].corrwith(df['value_eur']).sort_values(ascending=False)),
+ 'regCorr': {},
+ 'regResiduals': [],
+ 'clusterPCA': {},
  # contratación: eficiencia = overall / (value_eur/1e6), overall>=75, top3 por posición (Fase IV)
  'contratacion': {}
 }
+# Regresión lineal: matriz de correlación y residuos (replica Fase IV)
+_reg_vars = ['value_eur', 'wage_eur', 'age', 'overall', 'potential', 'passing', 'dribbling']
+_reg_cm = df[_reg_vars].corr().round(2)
+data['e4']['regCorr'] = {'labels': _reg_vars, 'matrix': _reg_cm.values.tolist()}
+
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression as _LR
+_df_log = df[df.value_eur > 0].copy()
+_df_log['log_value_eur'] = np.log1p(_df_log['value_eur'])
+_Xr = _df_log[['overall', 'age']]; _yr = _df_log['log_value_eur']
+_Xtr, _Xte, _ytr, _yte = train_test_split(_Xr, _yr, test_size=0.2, random_state=1234)
+_lr = _LR().fit(_Xtr, _ytr)
+_yp = _lr.predict(_Xte)
+_res = _yte.values - _yp
+_idx = np.random.RandomState(42).choice(len(_yp), size=min(400, len(_yp)), replace=False)
+data['e4']['regResiduals'] = [{'x': round(float(_yp[i]), 2), 'y': round(float(_res[i]), 2)} for i in _idx]
+
+# KMeans + PCA (replica Fase IV: age, potential, log_value_eur, log_wage_eur, k=4)
+_cl_feats = ['age', 'potential', 'log_value_eur', 'log_wage_eur']
+_cl_df = df.assign(log_value_eur=np.log1p(df.value_eur), log_wage_eur=np.log1p(df.wage_eur))[_cl_feats].dropna()
+_cl_sc = StandardScaler().fit_transform(_cl_df)
+_km = KMeans(n_clusters=4, random_state=42, n_init=10).fit(_cl_sc)
+_pca = PCA(n_components=2).fit(_cl_sc)
+_coords = _pca.transform(_cl_sc)
+_centroids_pca = _pca.transform(_km.cluster_centers_)
+_labels_map = {0: 'Jóvenes de bajo potencial', 1: 'Estrellas establecidas',
+               2: 'Veteranos consolidados', 3: 'Talento joven con proyección'}
+_sample_pts = []
+for c in range(4):
+    idx = np.where(_km.labels_ == c)[0]
+    chosen = np.random.RandomState(42).choice(idx, size=min(200, len(idx)), replace=False)
+    for i in chosen:
+        _sample_pts.append({'x': round(float(_coords[i, 0]), 2), 'y': round(float(_coords[i, 1]), 2), 'c': int(c)})
+data['e4']['clusterPCA'] = {
+    'points': _sample_pts,
+    'centroids': [{'x': round(float(_centroids_pca[i, 0]), 2), 'y': round(float(_centroids_pca[i, 1]), 2)} for i in range(4)],
+    'labels': [_labels_map[i] for i in range(4)],
+}
+
 CONT = {'Defensa': ['CB', 'LB', 'RB', 'LWB', 'RWB'], 'Mediocampista': ['CM', 'CAM', 'CDM', 'LM', 'RM'], 'Delantero': ['ST', 'CF', 'LW', 'RW']}
 cont = df_best[df_best['overall'] >= 75].copy()
 cont['ef'] = cont['overall'] / (cont['value_eur'] / 1e6)
 for nombre, pl in CONT.items():
     t3 = cont[cont['PosicionPrincipal'].isin(pl)].nlargest(3, 'ef')
     data['e4']['contratacion'][nombre] = [[r['short_name'], int(r['overall']), int(r['value_eur']), round(float(r['ef']), 1)] for _, r in t3.iterrows()]
+
+# Prescriptivo: comparación Greedy vs linprog (valores del notebook Fase IV)
+data['e4']['greedyVsLp'] = {
+    'rating': {'greedy': 881, 'linprog': 950},
+    'cost': {'greedy': 150.0, 'linprog': 143.8},
+}
+# Eficiencia contratación como gráfico (top 3 por posición, barras)
+_ef_chart = []
+for nombre in ['Defensa', 'Mediocampista', 'Delantero']:
+    for r in data['e4']['contratacion'][nombre]:
+        _ef_chart.append({'k': f'{r[0]} ({nombre[:3]})', 'v': r[3]})
+data['e4']['efChart'] = _ef_chart
+# Top 10 clubes por overall (cubo prescriptivo)
+data['e4']['topClubsOvr'] = kv(top(df.groupby('club_name')['overall'].mean()))
+
+# Cubos dimensionales (réplica exacta del notebook Fase IV)
+_cubo_liga = df.groupby('league_name')['overall'].mean().sort_values(ascending=False).head(10)
+data['e4']['topLigasOvr'] = kv(_cubo_liga)
+_cubo_edad = df.groupby('GrupoEdad').agg(Overall_Promedio=('overall','mean'), Potencial_Promedio=('potential','mean'),
+    Valor_Promedio_EUR=('value_eur','mean')).round(2)
+_age_order = [g for g in ['Young','Prime','Veteran'] if g in _cubo_edad.index]
+if _age_order: _cubo_edad = _cubo_edad.reindex(_age_order)
+data['e4']['cuboEdad'] = [{'k': g, 'ovr': round(float(r['Overall_Promedio']),2), 'pot': round(float(r['Potencial_Promedio']),2),
+    'val': round(float(r['Valor_Promedio_EUR']),0)} for g, r in _cubo_edad.iterrows()]
 
 # Regresión de valor (log1p(value) ~ overall + age + potential), en la línea de Fase IV.
 # El dashboard "Vender o No" la usa para ESTIMAR el valor del jugador y calcular su valor/rating.
